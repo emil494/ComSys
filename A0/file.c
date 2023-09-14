@@ -3,16 +3,19 @@
 #include <string.h> // strerror.
 #include <errno.h>  // errno.
 
-int print_hello_world(void) {
-  return fprintf(stdout, "Hello, world!\n");
-}
-
-int main(void) {
+int main(int argc, char* argv[]) {
   int retval = EXIT_SUCCESS;
+  FILE * f;
 
-  if (print_hello_world() <= 0) {
-    retval = EXIT_FAILURE;
+  if (argc < 2) {
+    int retval = EXIT_FAILURE;
+    printf("Usage: file path\n");
+    return retval;
   }
-
+  f = fopen(argv[argc-1], "r");
+  if (!f){
+    retval = EXIT_FAILURE;
+    return retval;
+  }
   return retval;
 }
