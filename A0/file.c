@@ -10,7 +10,7 @@ int main(int argc, char* argv[]) {
     return EXIT_FAILURE;
   }
 
-  // Open file in read mode
+  // Open file in read mode, and creater ptr
   FILE *file = fopen(argv[1], "r");
 
   // Check if file can be opened
@@ -24,6 +24,22 @@ int main(int argc, char* argv[]) {
   long size = ftell(file);   // Get current file pointer position
   if (size == 0) {
     printf("%s: empty\n", argv[1]);
+    return EXIT_SUCCESS;
+  }
+
+  // Loop trough the file, and find the char with the highest value
+  fseek(file, 0, SEEK_SET);
+  int higestChar = fgetc(file);
+  for (int i = 0; i <= size; i++) {
+    fseek(file, i, SEEK_SET);
+    int currentChar = fgetc(file);
+    if (currentChar > higestChar)
+      higestChar = currentChar;
+  } 
+
+  // Check if the file is an ASCII text file
+  if (higestChar <= 127) {
+    printf("%s: ASCII text\n", argv[1]);
     return EXIT_SUCCESS;
   }
 
