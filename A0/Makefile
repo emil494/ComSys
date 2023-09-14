@@ -1,5 +1,5 @@
 # Your GCC compiler
-CC=gcc
+CC=gcc-13
 # On Macs gcc actually calls clang (another C compiler).
 # To use gcc, install gcc (with brew) and point to the spcific version
 # For the latest uncomment the following line
