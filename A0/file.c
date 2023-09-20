@@ -4,9 +4,62 @@
 #include <errno.h>  // errno.
 #include <stdbool.h> // Bool
 
+//Handed error printer
 int print_error(char *path, int errnum) {
   return fprintf(stdout, "%s: cannot determine (%s)\n",
     path, strerror(errnum));
+}
+
+// Checker for UTF-8 encryption
+bool isUFT_8 (FILE *file, char *name) {
+  unsigned char read;
+  size_t bytes;
+  bool isUTF = true;
+  while ((bytes = fread(&read, sizeof(unsigned char), 1,  file)) == 1 && isUTF) {
+    // Check if ascii
+    if (read < 128) {
+      continue;
+
+    // Check if 2-byte sequence
+    } else if ((read & 224) == 192) {
+      unsigned char next;
+      if (fread(&next, sizeof(unsigned char), 1, file) != 1 || (next & 192) != 128) {
+          isUTF = false;
+          break;
+      }
+
+    // Check if 3-byte sequence
+    } else if ((read & 240) == 224) {
+      unsigned char next1, next2;
+      if (fread(&next1, sizeof(unsigned char), 1, file) != 1 || (next1 & 192) != 128 ||
+          fread(&next2, sizeof(unsigned char), 1, file) != 1 || (next2 & 192) != 128) {
+          isUTF = false;
+          break;
+      }
+    
+    // Check if 4-byte sequence
+    } else if ((read & 248) == 240) {
+      unsigned char next1, next2, next3;
+      if (fread(&next1, sizeof(unsigned char), 1, file) != 1 || (next1 & 192) != 128 ||
+          fread(&next2, sizeof(unsigned char), 1, file) != 1 || (next2 & 192) != 128 ||
+          fread(&next3, sizeof(unsigned char), 1, file) != 1 || (next3 & 192) != 128) {
+          isUTF = false;
+          break;
+      }
+    // If UTF-8 format isn't followed, fail
+    } else {
+      isUTF = false;
+      break;
+    }
+  }
+
+  // If checker was successful it's a UTF-8 encrypted file
+  if (isUTF == true) {
+    printf("%s: UTF-8 text\n", name);
+    return true;
+  } else {
+    return false;
+  }
 }
 
 int main(int argc, char* argv[]) {
@@ -24,61 +77,12 @@ int main(int argc, char* argv[]) {
     print_error(argv[1], errno);
     return EXIT_SUCCESS;
   }
-
-  // Check if file is empty
-  fseek(file, 0, SEEK_END);  // Move to end of file
-  long size = ftell(file);   // Get current file pointer position
-  if (size == 0) {
-    printf("%s: empty\n", argv[1]);
-    return EXIT_SUCCESS;
-  }
   
-  // Loop trough the file, and find the char with the highest value
-  fseek(file, 0, SEEK_SET);
-  int higestChar = fgetc(file);
-  for (int i = 0; i <= size; i++) {
-    fseek(file, i, SEEK_SET);
-    int currentChar = fgetc(file);
-    if (currentChar > higestChar)
-      higestChar = currentChar;
-  } 
-
-  // Checker for UTF-8 encryption
-  unsigned char read[4];
-  unsigned char bytes;
-  bool isUTF = true;
-  while ((bytes = fread(read, sizeof(unsigned char), sizeof(read), file)) == 1) {
-    for (int i = 0; i < bytes; i++) {
-      if (bytes > 128) {
-        printf("asad");
-        continue;
-      //Check 2 bytes
-      } else if (bytes <= i+1 && (read[i] & 224) == 192 && (read[i + 1] & 192) == 128)  {
-        continue;
-      
-      //Check 3 bytes
-      } else if (bytes <= i+2 && (read[i] & 240) == 224 && (read[i+1] & 224) == 192 && (read[i + 2] & 192) == 128) {
-        continue;
-
-      //Check 4 bytes
-      } else if (bytes <= i+3 && (read[i] & 248) == 240 && (read[i+1] & 240) == 224 && 
-      (read[i+2] & 224) == 192 && (read[i + 3] & 192) == 128) {
-        break;
-      } else {
-        isUTF = false;
-        break;
-      }
-    }
-    if (isUTF == false){
-      break;
-    }
+  if (isUFT_8(file, argv[1])){
+    return EXIT_FAILURE;
   }
 
-  // If checker successful it's a UTF-8 encrypted file
-  if (isUTF == true) {
-    printf("%s: UTF-8 text\n", argv[1]);
-    return EXIT_SUCCESS;
-  }
-
+  fclose(file);
   return EXIT_FAILURE;
 }
+
