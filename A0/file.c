@@ -3,6 +3,11 @@
 #include <string.h> // strerror.
 #include <errno.h>  // errno.
 
+int print_error(char *path, int errnum) {
+  return fprintf(stdout, "%s: cannot determine (%s)\n",
+    path, strerror(errnum));
+}
+
 int main(int argc, char* argv[]) {
   // Check if 0 arguments were given
   if (argc == 1) {
@@ -15,7 +20,7 @@ int main(int argc, char* argv[]) {
 
   // Check if file can be opened
   if (!file) {
-    printf("cant finde file...\n");
+    print_error(argv[1], );
     return EXIT_SUCCESS;
   }
 
