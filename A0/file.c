@@ -24,8 +24,8 @@ const char * const FILE_TYPE_STRINGS[] = {
   "data",
   "empty",
   "ASCII text",
-  "ISO-8859-1 text",
-  "UTF-8 text"
+  "ISO-8859 text",
+  "Unicode text, UTF-8 text"
 };
 
 bool isAsciiChar(unsigned int byte) {
@@ -120,7 +120,9 @@ enum fileType determineFile(FILE *file) {
     if (!isIso && !isAscii)
       break;
   }
-
+  
+  // Reset pointer to start of file
+  fseek(file, 0, SEEK_SET);
   if (!isUFT_8_Form(file)) {
     isUTF8 = false;
   }
@@ -186,6 +188,6 @@ int main(int argc, char *argv[]) {
   printFileType(type, argv[1]);
 
   fclose(file);
-  return EXIT_FAILURE;
+  return EXIT_SUCCESS;
 }
 
