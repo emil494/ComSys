@@ -43,6 +43,10 @@ printf "Hello,\x0E\x1A\x1C\x1FWorld!" > test_files/data3.input # Outside of ASCI
 printf "Hello,\x3A7DB28F61World" > test_files/data5.input # 5 byte character
 printf "Hello,\x3A7DB28F617AWorld" > test_files/data6.input # 6 byte character
 
+# ERRORS
+printf "hemmelighed" > test_files/hemmelig_fil.input
+chmod -r  test_files/hemmelig_fil.input
+
 
 echo "Running the tests.."
 exitcode=0
@@ -52,7 +56,7 @@ do
   file    ${f} | sed -e 's/ASCII text.*/ASCII text/' \
                          -e 's/UTF-8 Unicode text.*/UTF-8 Unicode text/' \
                          -e 's/ISO-8859 text.*/ISO-8859 text/' \
-                         -e 's/writable, regular file, no read permission/cannot determine (Permission denied)/' \
+                         -e 's/cannot open: Permission denied/cannot determine (Permission denied)/' \
                          > "${f}.expected"
   ./file  "${f}" > "${f}.actual"
 
