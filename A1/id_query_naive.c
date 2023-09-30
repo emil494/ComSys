@@ -14,7 +14,6 @@ struct naive_data {
   int n;
 };
 
-// Simply creates a linear array data structure
 struct naive_data* mk_naive(struct record* rs, int n) {
   struct naive_data *data = malloc(sizeof(struct naive_data));
   assert(data != NULL);
