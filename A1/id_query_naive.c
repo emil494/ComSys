@@ -15,8 +15,7 @@ struct naive_data {
 };
 
 struct naive_data* mk_naive(struct record* rs, int n) {
-  // TODO
-  assert(0);
+  
 }
 
 void free_naive(struct naive_data* data) {
@@ -25,8 +24,16 @@ void free_naive(struct naive_data* data) {
 }
 
 const struct record* lookup_naive(struct naive_data *data, int64_t needle) {
-  // TODO
-  assert(0);
+  int64_t typed;
+  printf("Write an index you with to find, -1 will exit");
+  if (scanf("%d", &typed) != 0) {
+    printf("Invalid number")
+  }
+
+  for (int i = 0; i < n; i++) {
+    int64_t array = rs[i];
+    
+  }
 }
 
 int main(int argc, char** argv) {
