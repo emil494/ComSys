@@ -8,16 +8,7 @@
 
 #include "record.h"
 #include "id_query.h"
-
-struct index_record {
-  int64_t osm_id;
-  const struct record *record;
-};
-
-struct indexed_data {
-  struct index_record *irs;
-  int n;
-};
+#include "id_query_indexed.h"
 
 struct indexed_data* mk_indexed(struct record* rs, int n) {
   struct indexed_data *data = malloc(sizeof(struct indexed_data));
