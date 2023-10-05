@@ -47,23 +47,28 @@ int sort_rec(struct record* rs, int n, int depth) {
 
 struct node* rec (struct node* node, struct record* rs, int n, int depth, int offset) {
     int N = n - offset;
+    if (N <= 0) {
+        free(node);
+        return NULL;
+    }
     int mid = floor(N/2);
+    sort_rec(rs, n, depth);
     node->record = &rs[mid];
     node->coord[0] = rs[mid].lon;
     node->coord[1] = rs[mid].lat;
-    if (N == 0) {
-        return NULL;
-    }
+
     if (N < 2) {
         node->right = NULL;
-        struct node *l = malloc(sizeof(struct node));
-        node->left = rec(l, rs, mid-1, depth+1, offset);
+        node->left = NULL;
     } else {
-        sort_rec(rs, n, depth);
         struct node *l = malloc(sizeof(struct node));
         struct node *r = malloc(sizeof(struct node));
-        node->left = rec(l, rs, mid-1, depth+1, offset);
-        node->right = rec(r, rs, n, depth+1, mid+1);  
+        if (r == NULL || l == NULL) {
+            perror("Failed to allocate memory for kd tree");
+            exit(EXIT_FAILURE);
+        }
+        node->left = rec(l, rs, mid - offset, depth + 1, offset);
+        node->right = rec(r, rs, n - mid - 1, depth + 1, mid + 1);
     }
     return node;
 }
@@ -81,15 +86,32 @@ struct node* mk_kdtree(struct record* rs, int n) {
     first->coord[1] = rs[mid].lat;
     struct node *l = malloc(sizeof(struct node));
     struct node *r = malloc(sizeof(struct node));
+    if (l == NULL || r == NULL) {
+        perror("Failed to allocate memory for kd tree");
+        exit(EXIT_FAILURE);
+    }
     first->left = rec(l, rs, mid-1, 0, 0);
     first->right = rec(r, rs, n, 0, mid+1);
     return first;
 }
 
+void free_kdtree(struct node* data) {
+    if (data->left != NULL) {
+        free_kdtree(data->left);
+    }
+    if (data->right != NULL) {
+        free_kdtree(data->right);
+    }
+    free(data);
+}
+
+const struct record* lookup_kdtree(struct node *data, double lon, double lat) {
+    return data->record;
+}
 
 int main(int argc, char** argv) {
   return coord_query_loop(argc, argv,
-                          (mk_index_fn)mk_kdtree,
-                    (free_index_fn)free_sorted_index,
-                    (lookup_fn)lookup_sorted_index);
+                    (mk_index_fn)mk_kdtree,
+                    (free_index_fn)free_kdtree,
+                    (lookup_fn)lookup_kdtree);
 }
