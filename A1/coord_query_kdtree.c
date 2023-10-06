@@ -105,8 +105,39 @@ void free_kdtree(struct node* data) {
     free(data);
 }
 
+double euclid (double point1[], double point2[]) {
+    double x1 = point1[0];
+    double x2 = point2[0];
+    double y1 = point1[1];
+    double y2 = point2[1];
+    return sqrt(pow(x1 - x2,2) + pow(y1 - y2,2));
+}
+
+struct node* lookup_rec(struct node* closest, double query[], struct node* node) {
+    if (node == NULL) {
+        return closest;
+    } else if (euclid(closest->coord, query) > euclid(node->coord, query)) {
+        closest = node;
+    }
+    int axis = node->axis;
+    double diff = node->coord[axis]-query[axis];
+    double radius = euclid(closest->coord, query);
+
+    if (diff >= 0 || radius > abs(diff)) {
+        lookup_rec(closest, query, node->left);
+    }
+    if (diff <= 0 || radius > abs(diff)) {
+        lookup_rec(closest, query, node->right);
+    }
+    return closest;
+}
+
 const struct record* lookup_kdtree(struct node *data, double lon, double lat) {
-    return data->record;
+    double query[2];
+    query[0] = lon;
+    query[1] = lat;
+    struct node* result = lookup_rec(data, query, data);
+    return result->record;
 }
 
 int main(int argc, char** argv) {
