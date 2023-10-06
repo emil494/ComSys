@@ -14,8 +14,7 @@ struct node {
     struct node *left;
     struct node *right;
     struct record *record;
-    double coord[2];
-    int axis;
+    int coord[2];
     };
 
 
@@ -46,7 +45,7 @@ int sort_rec(struct record* rs, int n, int depth) {
     return 0;
 }
 
-struct node* mk_rec (struct node* node, struct record* rs, int n, int depth, int offset) {
+struct node* rec (struct node* node, struct record* rs, int n, int depth, int offset) {
     int N = n - offset;
     if (N <= 0) {
         free(node);
@@ -54,7 +53,6 @@ struct node* mk_rec (struct node* node, struct record* rs, int n, int depth, int
     }
     int mid = floor(N/2);
     sort_rec(rs, n, depth);
-    node->axis = depth % 2;
     node->record = &rs[mid];
     node->coord[0] = rs[mid].lon;
     node->coord[1] = rs[mid].lat;
@@ -69,8 +67,8 @@ struct node* mk_rec (struct node* node, struct record* rs, int n, int depth, int
             perror("Failed to allocate memory for kd tree");
             exit(EXIT_FAILURE);
         }
-        node->left = mk_rec(l, rs, mid - offset, depth + 1, offset);
-        node->right = mk_rec(r, rs, n - mid - 1, depth + 1, mid + 1);
+        node->left = rec(l, rs, mid - offset, depth + 1, offset);
+        node->right = rec(r, rs, n - mid - 1, depth + 1, mid + 1);
     }
     return node;
 }
@@ -83,7 +81,6 @@ struct node* mk_kdtree(struct record* rs, int n) {
     }
     sort_rec(rs, n, 0);
     int mid = floor(n/2);
-    first->axis = 0;
     first->record = &rs[mid];
     first->coord[0] = rs[mid].lon;
     first->coord[1] = rs[mid].lat;
@@ -93,8 +90,8 @@ struct node* mk_kdtree(struct record* rs, int n) {
         perror("Failed to allocate memory for kd tree");
         exit(EXIT_FAILURE);
     }
-    first->left = mk_rec(l, rs, mid-1, 0, 0);
-    first->right = mk_rec(r, rs, n, 0, mid+1);
+    first->left = rec(l, rs, mid-1, 0, 0);
+    first->right = rec(r, rs, n, 0, mid+1);
     return first;
 }
 
@@ -108,39 +105,8 @@ void free_kdtree(struct node* data) {
     free(data);
 }
 
-double euclid (double point1[], double point2[]) {
-    double x1 = point1[0];
-    double x2 = point2[0];
-    double y1 = point1[1];
-    double y2 = point2[1];
-    return sqrt(pow(x1 - x2,2) + pow(y1 - y2,2));
-}
-
-struct node* lookup_rec(struct node* closest, double query[], struct node* node) {
-    if (node == NULL) {
-        return closest;
-    } else if (euclid(closest->coord, query) > euclid(node->coord, query)) {
-        closest = node;
-    }
-    int axis = node->axis;
-    double diff = node->coord[axis]-query[axis];
-    double radius = euclid(closest->coord, query);
-
-    if (diff >= 0 || radius > abs(diff)) {
-        lookup_rec(closest, query, node->left);
-    }
-    if (diff <= 0 || radius > abs(diff)) {
-        lookup_rec(closest, query, node->right);
-    }
-    return closest;
-}
-
 const struct record* lookup_kdtree(struct node *data, double lon, double lat) {
-    double query[2];
-    query[0] = lon;
-    query[1] = lat;
-    struct node* result = lookup_rec(data, query, data);
-    return result->record;
+    return data->record;
 }
 
 int main(int argc, char** argv) {
