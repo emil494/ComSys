@@ -14,7 +14,7 @@ struct node {
     struct node *left;
     struct node *right;
     struct record *record;
-    int coord[2];
+    double coord[2];
     };
 
 
