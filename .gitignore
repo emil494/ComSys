@@ -51,7 +51,3 @@ modules.order
 Module.symvers
 Mkfile.old
 dkms.conf
-
-# Datafiles
-*.tsv
-*.json
