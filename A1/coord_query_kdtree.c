@@ -53,8 +53,9 @@ struct node* rec (struct node* node, struct record* rs, int offset, int n, int d
         free(node);
         return NULL;
     //If one record
-    } else if (N == 0) {
-        node->axis = depth % 2;
+    } 
+    node->axis = depth % 2;
+    if (N == 0) {
         node->record = &rs[offset];
         node->coord[0] = rs[offset].lon;
         node->coord[1] = rs[offset].lat;
@@ -63,7 +64,6 @@ struct node* rec (struct node* node, struct record* rs, int offset, int n, int d
         return node;
     }
     //Multiple records
-    node->axis = depth % 2;
     sort_rec(rs + offset, N, node->axis);
     int mid = offset + ceill(N/2);
     node->record = &rs[mid];
