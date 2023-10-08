@@ -12,7 +12,7 @@
 #include "id_query_indexed.h"
 
 struct index_ord_record {
-  const struct indexed_data *record;
+  struct indexed_data *record;
   int n;
 };
 
@@ -66,6 +66,7 @@ struct index_ord_record* mk_sorted_index(struct record* rs, int n) {
 
 void free_sorted_index(struct index_ord_record* data) {
   free(data->record->irs);
+  free(data->record);
   free(data);
 }
 
