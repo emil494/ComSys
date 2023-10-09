@@ -55,3 +55,4 @@ dkms.conf
 # Datafiles
 *.tsv
 *.json
+*
