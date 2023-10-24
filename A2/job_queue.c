@@ -52,7 +52,6 @@ int job_queue_push(struct job_queue *job_queue, void *data) {
 
   pthread_cond_signal(&job_queue->cond_pop);
   pthread_mutex_unlock(&job_queue->lock);
-  pthread_cond_broadcast(&job_queue->cond_not_empty);
   return 0;
 }
 
