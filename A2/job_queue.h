@@ -5,9 +5,11 @@
 
 struct job_queue {
   pthread_mutex_t lock;
+  pthread_cond_t cond_empty;
+  pthread_cond_t cond_not_empty;
+  pthread_cond_t cond_not_full;
   int num;
   int n;
-  int destroyed;
   void *buffer[];
 };
 
