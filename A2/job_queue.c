@@ -6,42 +6,51 @@
 
 
 int job_queue_init(struct job_queue *job_queue, int capacity) {
-  *(job_queue->buffer) = malloc(capacity*sizeof(void*));
-  if (!job_queue->buffer) {
+  if (job_queue->buffer == NULL || job_queue == NULL) {
     return 1;
   }
-  
+  job_queue->buffer = malloc(capacity * sizeof(void*));
+
   job_queue->n = capacity;
   job_queue->num = 0;
+
+  job_queue->destroyed = false;
   pthread_mutex_init(&job_queue->lock, NULL);
-  pthread_cond_init(&job_queue->cond_empty, NULL);
-  pthread_cond_init(&job_queue->cond_not_empty, NULL);
-  pthread_cond_init(&job_queue->cond_not_full, NULL);
+  pthread_cond_init(&job_queue->cond_pop, NULL);
+  pthread_cond_init(&job_queue->cond_push, NULL);
+  pthread_cond_init(&job_queue->cond_destroy, NULL);
   return 0;
 }
 
 int job_queue_destroy(struct job_queue *job_queue) {
   pthread_mutex_lock(&job_queue->lock);
+  job_queue->destroyed = true;
+
   while (job_queue->num != 0) {
-    pthread_cond_wait(&job_queue->cond_empty, &job_queue->lock);
+    pthread_cond_wait(&job_queue->cond_destroy, &job_queue->lock);
   }
-  free(*(job_queue->buffer));
-  free(job_queue);
+
   pthread_mutex_unlock(&job_queue->lock);
+  pthread_mutex_destroy(&job_queue->lock);
+  pthread_cond_destroy(&job_queue->cond_destroy);
+  pthread_cond_destroy(&job_queue->cond_pop);
+  pthread_cond_destroy(&job_queue->cond_push);
+
+  free(job_queue->buffer);
+  free(job_queue);
   return 0;
 }
 
 int job_queue_push(struct job_queue *job_queue, void *data) {
-  if (!job_queue) {
-    printf("Can't push onto a destroyed queue\n");
-    return 1;
-  }
   pthread_mutex_lock(&job_queue->lock);
-  while (job_queue->num == job_queue->n) {
-    pthread_cond_wait(&job_queue->cond_not_full, &job_queue->lock);
+
+  while (job_queue->num == job_queue->n && !job_queue->destroyed) {
+    pthread_cond_wait(&job_queue->cond_push, &job_queue->lock);
   }
   job_queue->buffer[job_queue->num] = data;
   job_queue->num += 1;
+
+  pthread_cond_signal(&job_queue->cond_pop);
   pthread_mutex_unlock(&job_queue->lock);
   pthread_cond_broadcast(&job_queue->cond_not_empty);
   return 0;
@@ -49,22 +58,29 @@ int job_queue_push(struct job_queue *job_queue, void *data) {
 
 
 int job_queue_pop(struct job_queue *job_queue, void **data) {
-  if (!job_queue) {
-    printf("Can't pop from a destroyed queue\n");
-    return 1;
-  }
   pthread_mutex_lock(&job_queue->lock);
-  while (job_queue->num == 0) {
-    pthread_cond_wait(&job_queue->cond_not_empty, &job_queue->lock);
+
+  while (job_queue->num == 0 && !job_queue->destroyed) {
+    pthread_cond_wait(&job_queue->cond_pop, &job_queue->lock);
   }
+
+  if (job_queue->destroyed) {
+    pthread_mutex_unlock(&job_queue->lock);
+    return -1; // queue is destroyed
+  }
+
+  
   *data = job_queue->buffer[0];
+  job_queue->buffer[0] = NULL;
   job_queue->num -= 1;
-  for (int i = 0; i < job_queue->num; i++) {
-    job_queue->buffer[i] = job_queue->buffer[i+1];
+  if (job_queue->num != 0) {
+    for (int i = 0; i < job_queue->num; i++) {
+      job_queue->buffer[i] = job_queue->buffer[i+1];
+    }
+    job_queue->buffer[job_queue->num-1] = NULL;
   }
-  job_queue->buffer[job_queue->num] = NULL;
-  pthread_cond_broadcast(&job_queue->cond_not_empty);
-  pthread_cond_broadcast(&job_queue->cond_not_full);
+
+  pthread_cond_signal(&job_queue->cond_push);
   pthread_mutex_unlock(&job_queue->lock);
   return 0;
 }

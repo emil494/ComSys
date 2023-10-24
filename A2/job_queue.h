@@ -2,15 +2,17 @@
 #define JOB_QUEUE_H
 
 #include <pthread.h>
+#include <stdbool.h>
 
 struct job_queue {
   pthread_mutex_t lock;
-  pthread_cond_t cond_empty;
-  pthread_cond_t cond_not_empty;
-  pthread_cond_t cond_not_full;
+  pthread_cond_t cond_pop;
+  pthread_cond_t cond_push;
+  pthread_cond_t cond_destroy;
+  bool destroyed;
   int num;
   int n;
-  void *buffer[];
+  void **buffer;
 };
 
 // Initialise a job queue with the given capacity.  The queue starts out
