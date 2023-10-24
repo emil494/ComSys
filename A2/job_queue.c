@@ -13,6 +13,7 @@ int job_queue_init(struct job_queue *job_queue, int capacity) {
 
   job_queue->n = capacity;
   job_queue->num = 0;
+
   job_queue->destroyed = false;
   pthread_mutex_init(&job_queue->lock, NULL);
   pthread_cond_init(&job_queue->cond_pop, NULL);
@@ -46,12 +47,12 @@ int job_queue_push(struct job_queue *job_queue, void *data) {
   while (job_queue->num == job_queue->n && !job_queue->destroyed) {
     pthread_cond_wait(&job_queue->cond_push, &job_queue->lock);
   }
-
   job_queue->buffer[job_queue->num] = data;
   job_queue->num += 1;
 
   pthread_cond_signal(&job_queue->cond_pop);
   pthread_mutex_unlock(&job_queue->lock);
+  pthread_cond_broadcast(&job_queue->cond_not_empty);
   return 0;
 }
 
