@@ -11,7 +11,6 @@ int job_queue_init(struct job_queue *job_queue, int capacity) {
   }
   job_queue->buffer = malloc(capacity * sizeof(void*));
 
-  
   job_queue->n = capacity;
   job_queue->num = 0;
   job_queue->destroyed = false;
