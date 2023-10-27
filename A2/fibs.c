@@ -17,19 +17,16 @@
 #include <sys/stat.h>
 #include <fts.h>
 
-// err.h contains various nonstandard BSD extensions, but they are
-// very handy.
+// err.h contains various nonstandard BSD extensions, but they are very handy.
 #include <err.h>
 
 #include "job_queue.h"
 
 // Whenever we print to the screen, we will first lock this mutex.
-// This ensures that multiple threads do not try to print
-// concurrently.
+// This ensures that multiple threads do not try to print concurrently.
 pthread_mutex_t stdout_mutex = PTHREAD_MUTEX_INITIALIZER;
 
-// A simple recursive (inefficient) implementation of the Fibonacci
-// function.
+// A simple recursive (inefficient) implementation of the Fibonacci function.
 int fib (int n) {
   if (n < 2) {
     return 1;
@@ -39,8 +36,7 @@ int fib (int n) {
 }
 
 // This function converts a line to an integer, computes the
-// corresponding Fibonacci number, then prints the result to the
-// screen.
+// corresponding Fibonacci number, then prints the result to the screen.
 void fib_line(const char *line) {
   int n = atoi(line);
   int fibn = fib(n);
@@ -49,8 +45,7 @@ void fib_line(const char *line) {
   assert(pthread_mutex_unlock(&stdout_mutex) == 0);
 }
 
-// Each thread will run this function.  The thread argument is a
-// pointer to a job queue.
+// Each thread will run this function. The thread argument is a pointer to a job queue.
 void* worker(void *arg) {
   struct job_queue *jq = arg;
 
@@ -112,12 +107,12 @@ int main(int argc, char * const *argv) {
   // Destroy the queue.
   job_queue_destroy(&jq);
 
-  // Wait for all threads to finish.  This is important, at some may
-  // still be working on their job.
+  // Wait for all threads to finish.  This is important, at some may still be working on their job.
   for (int i = 0; i < num_threads; i++) {
     if (pthread_join(threads[i], NULL) != 0) {
       err(1, "pthread_join() failed");
     }
   }
   free(threads);
+  printf("Exit Success\n");
 }

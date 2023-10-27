@@ -24,11 +24,13 @@ int job_queue_init(struct job_queue *job_queue, int capacity) {
 
 int job_queue_destroy(struct job_queue *job_queue) {
   pthread_mutex_lock(&job_queue->lock);
-  job_queue->destroyed = true;
 
   while (job_queue->num != 0) {
     pthread_cond_wait(&job_queue->cond_destroy, &job_queue->lock);
   }
+
+  job_queue->destroyed = true;
+  pthread_cond_broadcast(&job_queue->cond_pop);
 
   pthread_mutex_unlock(&job_queue->lock);
   pthread_mutex_destroy(&job_queue->lock);
@@ -37,7 +39,6 @@ int job_queue_destroy(struct job_queue *job_queue) {
   pthread_cond_destroy(&job_queue->cond_push);
 
   free(job_queue->buffer);
-  free(job_queue);
   return 0;
 }
 
@@ -65,9 +66,8 @@ int job_queue_pop(struct job_queue *job_queue, void **data) {
 
   if (job_queue->destroyed) {
     pthread_mutex_unlock(&job_queue->lock);
-    return -1; // queue is destroyed
+    return -1;
   }
-
   
   *data = job_queue->buffer[0];
   job_queue->buffer[0] = NULL;
@@ -80,6 +80,7 @@ int job_queue_pop(struct job_queue *job_queue, void **data) {
   }
 
   pthread_cond_signal(&job_queue->cond_push);
+  pthread_cond_signal(&job_queue->cond_destroy);
   pthread_mutex_unlock(&job_queue->lock);
   return 0;
 }
