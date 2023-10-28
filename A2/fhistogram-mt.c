@@ -43,10 +43,10 @@ int fhistogram(char const *path) {
     i++;
     update_histogram(local_histogram, c);
     if ((i % 100000) == 0) {
-      pthread_mutex_lock(merge_lock);
+      pthread_mutex_lock(&merge_lock);
       merge_histogram(local_histogram, global_histogram);
       print_histogram(global_histogram);
-      pthread_mutex_unlock(merge_lock);
+      pthread_mutex_unlock(&merge_lock);
     }
   }
 
@@ -131,7 +131,7 @@ int main(int argc, char * const *argv) {
     case FTS_D:
       break;
     case FTS_F:
-      job_queue_push(&jq, (void*)strdup(p->fts_path)); // Process the file p->fts_path, somehow.
+      job_queue_push(&jq, (void*)strdup(p->fts_path));
       break;
     default:
       break;
@@ -145,7 +145,7 @@ int main(int argc, char * const *argv) {
     if (pthread_join(threads[i], NULL) != 0) {
       err(1, "pthread_join() failed");
     }
-  } // Shut down the job queue and the worker threads here.
+  }
 
   move_lines(9);
   free(threads);
