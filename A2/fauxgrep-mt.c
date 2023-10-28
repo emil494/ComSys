@@ -57,7 +57,6 @@ int fauxgrep_file(char const *needle, char const *path) {
 
 void* worker(void *arg) {
   struct search_queue *sqp = arg;
-
   while (1) {
     char *path;
     if (job_queue_pop(sqp->queue, (void**)&path) == 0) {

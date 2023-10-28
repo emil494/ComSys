@@ -48,7 +48,6 @@ void fib_line(const char *line) {
 // Each thread will run this function. The thread argument is a pointer to a job queue.
 void* worker(void *arg) {
   struct job_queue *jq = arg;
-
   while (1) {
     char *line;
     if (job_queue_pop(jq, (void**)&line) == 0) {
