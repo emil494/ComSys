@@ -157,7 +157,5 @@ int main(int argc, char * const *argv) {
     }
   }
   free(threads);
-  printf("\nExit Success\n");
-
   return 0;
 }
