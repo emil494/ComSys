@@ -13,8 +13,8 @@ struct job_queue {
   int num;
   int max;
   void **buffer;
-  int top;
-  int rear;
+  int push;
+  int pop;
 };
 
 // Initialise a job queue with the given capacity.  The queue starts out
