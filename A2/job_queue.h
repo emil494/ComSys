@@ -11,8 +11,10 @@ struct job_queue {
   pthread_cond_t cond_destroy;
   bool destroyed;
   int num;
-  int n;
+  int max;
   void **buffer;
+  int push;
+  int pop;
 };
 
 // Initialise a job queue with the given capacity.  The queue starts out
