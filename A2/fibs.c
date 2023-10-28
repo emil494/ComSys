@@ -84,7 +84,7 @@ int main(int argc, char * const *argv) {
 
   // Create job queue.
   struct job_queue jq;
-  job_queue_init(&jq, 2);
+  job_queue_init(&jq, 64);
 
   // Start up the worker threads.
   pthread_t *threads = calloc(num_threads, sizeof(pthread_t));
@@ -114,4 +114,5 @@ int main(int argc, char * const *argv) {
     }
   }
   free(threads);
+  printf("Exit Success\n");
 }
