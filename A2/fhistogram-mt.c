@@ -57,10 +57,10 @@ int fhistogram(char const *path) {
 }
 
 void* worker (void *arg) {
-  struct job_queue jq = arg;
+  struct job_queue *jq = arg;
   char *path;
   while (1) {
-    if (job_queue_pop(&jq, (void**)&path) == 0) {
+    if (job_queue_pop(jq, (void**)&path) == 0) {
       fhistogram(path);
       free(path);
     } else {
