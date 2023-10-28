@@ -57,10 +57,10 @@ int fhistogram(char const *path) {
 }
 
 void* worker (void *arg) {
-  struct job_queue *jq = arg;
+  struct job_queue jq = arg;
   char *path;
   while (1) {
-    if (job_queue_pop(jq, (void**)&path) == 0) {
+    if (job_queue_pop(&jq, (void**)&path) == 0) {
       fhistogram(path);
       free(path);
     } else {
@@ -97,16 +97,15 @@ int main(int argc, char * const *argv) {
     paths = &argv[1];
   }
 
-  struct job_queue *jq;
-  jq = malloc(sizeof(struct job_queue));
-  if (job_queue_init(jq, 64) != 0) {
+  struct job_queue jq;
+  if (job_queue_init(&jq, 64) != 0) {
     err(1, "job_queue_init failed");
     exit(1);
   }
 
   pthread_t *threads = calloc(num_threads, sizeof(pthread_t));
   for (int i = 0; i < num_threads; i++) {
-    if (pthread_create(&threads[i], NULL, &worker, jq) != 0) {
+    if (pthread_create(&threads[i], NULL, &worker, &jq) != 0) {
       err(1, "pthread_create() failed");
     }
   }
@@ -130,7 +129,7 @@ int main(int argc, char * const *argv) {
     case FTS_D:
       break;
     case FTS_F:
-      job_queue_push(jq, (void*)strdup(p->fts_path));
+      job_queue_push(&jq, (void*)strdup(p->fts_path));
       break;
     default:
       break;
@@ -139,7 +138,7 @@ int main(int argc, char * const *argv) {
 
   fts_close(ftsp);
 
-  job_queue_destroy(jq);
+  job_queue_destroy(&jq);
   for (int i = 0; i < num_threads; i++) {
     if (pthread_join(threads[i], NULL) != 0) {
       err(1, "pthread_join() failed");
