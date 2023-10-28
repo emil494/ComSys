@@ -35,13 +35,8 @@ int job_queue_destroy(struct job_queue *job_queue) {
 
   job_queue->destroyed = true;
   pthread_cond_broadcast(&job_queue->cond_pop);
-
+  
   pthread_mutex_unlock(&job_queue->lock);
-  pthread_mutex_destroy(&job_queue->lock);
-  pthread_cond_destroy(&job_queue->cond_destroy);
-  pthread_cond_destroy(&job_queue->cond_pop);
-  pthread_cond_destroy(&job_queue->cond_push);
-
   free(job_queue->buffer);
   return 0;
 }
@@ -52,6 +47,7 @@ int job_queue_push(struct job_queue *job_queue, void *data) {
   while (job_queue->num == job_queue->max && !job_queue->destroyed) {
     pthread_cond_wait(&job_queue->cond_push, &job_queue->lock);
   }
+  
   job_queue->buffer[job_queue->rear] = data;
   job_queue->rear = (job_queue->rear + 1) % job_queue->max;
   job_queue->num += 1;
