@@ -22,8 +22,8 @@
 
 pthread_mutex_t stdout_mutex = PTHREAD_MUTEX_INITIALIZER;
 
-struct search_prompt {
-  char const *path;
+struct search_queue {
+  struct job_queue *queue;
   char const *needle;
 };
 
@@ -56,14 +56,13 @@ int fauxgrep_file(char const *needle, char const *path) {
 }
 
 void* worker(void *arg) {
-  struct job_queue *jq = arg;
+  struct search_queue *sqp = arg;
 
   while (1) {
-    struct search_prompt *prompt;
-    if (job_queue_pop(jq, (void**)&prompt) == 0) {
-      fauxgrep_file(prompt->needle, prompt->path);
-      free((char *)prompt->path);
-      free(prompt);
+    char *path;
+    if (job_queue_pop(sqp->queue, (void**)&path) == 0) {
+      fauxgrep_file(sqp->needle, path);
+      free(path);
     } else {
       // If job_queue_pop() returned non-zero, that means the queue is
       // being killed (or some other error occured).  In any case,
@@ -80,7 +79,6 @@ int main(int argc, char * const *argv) {
     err(1, "usage: [-n INT] STRING paths...");
     exit(1);
   }
-
   int num_threads = 1;
   char const *needle = argv[1];
   char * const *paths = &argv[2];
@@ -106,14 +104,18 @@ int main(int argc, char * const *argv) {
     paths = &argv[2];
   }
 
-  // Create job queue.
+  // Create job queue and search queue.
   struct job_queue jq;
   job_queue_init(&jq, 64);
-
+  struct search_queue sq;
+  struct search_queue *sqp = &sq;
+  sqp->queue = &jq;
+  sqp->needle = needle;
+  
   // Start up the worker threads.
   pthread_t *threads = calloc(num_threads, sizeof(pthread_t));
   for (int i = 0; i < num_threads; i++) {
-    if (pthread_create(&threads[i], NULL, &worker, &jq) != 0) {
+    if (pthread_create(&threads[i], NULL, &worker, sqp) != 0) {
       err(1, "pthread_create() failed");
     }
   }
@@ -137,15 +139,8 @@ int main(int argc, char * const *argv) {
     case FTS_D:
       break;
     case FTS_F: 
-      {
-      // Que jobs
-      struct search_prompt *prompt = malloc(sizeof(struct search_prompt));
-      prompt->needle = needle;
-      prompt->path = strdup(p->fts_path);
-      job_queue_push(&jq, (void*)prompt);
-      //printf("Hello\n");
+      job_queue_push(sqp->queue, strdup(p->fts_path));
       break;
-      }
     default:
       break;
     }
@@ -154,7 +149,7 @@ int main(int argc, char * const *argv) {
   fts_close(ftsp);
 
   // Shut down the job queue and the worker threads here.
-  job_queue_destroy(&jq);
+  job_queue_destroy(sqp->queue);
   // Wait for all threads to finish.  This is important, at some may still be working on their job.
   for (int i = 0; i < num_threads; i++) {
     if (pthread_join(threads[i], NULL) != 0) {
