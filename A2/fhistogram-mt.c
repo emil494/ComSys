@@ -22,7 +22,7 @@ pthread_mutex_t stdout_mutex = PTHREAD_MUTEX_INITIALIZER;
 
 #include "histogram.h"
 
-pthread_mutex_t wlock;
+pthread_mutex_t merge_lock;
 int global_histogram[8] = { 0 };
 
 int fhistogram(char const *path) {
@@ -43,8 +43,10 @@ int fhistogram(char const *path) {
     i++;
     update_histogram(local_histogram, c);
     if ((i % 100000) == 0) {
+      pthread_mutex_lock(merge_lock);
       merge_histogram(local_histogram, global_histogram);
       print_histogram(global_histogram);
+      pthread_mutex_unlock(merge_lock);
     }
   }
 
