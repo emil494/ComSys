@@ -14,8 +14,6 @@
 
 #include "job_queue.h"
 
-pthread_mutex_t stdout_mutex = PTHREAD_MUTEX_INITIALIZER;
-
 // err.h contains various nonstandard BSD extensions, but they are
 // very handy.
 #include <err.h>
