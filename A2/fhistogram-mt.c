@@ -50,8 +50,10 @@ int fhistogram(char const *path) {
 
   fclose(f);
 
+  pthread_mutex_lock(&merge_lock);
   merge_histogram(local_histogram, global_histogram);
   print_histogram(global_histogram);
+  pthread_mutex_unlock(&merge_lock);
 
   return 0;
 }
