@@ -1,0 +1,7 @@
+# pack-refs with: peeled fully-peeled sorted 
+69b9d4b3afb82b05ff5ecff496eee74c65325b8c refs/remotes/origin/Aabb_refactoring
+008987b8abecfcc3eaed11e92d7e52d278e8519e refs/remotes/origin/delegate_based_event
+2aeeda09850e0045c61e03df09c927e9cab5c8f3 refs/remotes/origin/develop
+2cb09fb174ae28e6bbae7330c6550be8d5e4a9c3 refs/remotes/origin/improvements
+0a59a852596a80eec9ef54ed5eba9b53f18daa04 refs/remotes/origin/master
+648c9e8ba905f2d9b7af0bd6e8bf908999a1169e refs/remotes/origin/text_rendering_fonttypes

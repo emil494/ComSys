@@ -147,7 +147,7 @@ int main(int argc, char * const *argv) {
 
   fts_close(ftsp);
 
-  // Shut down the job queue and the worker threads here.
+   // Shut down the job queue and the worker threads here.
   job_queue_destroy(sqp->queue);
   // Wait for all threads to finish.  This is important, at some may still be working on their job.
   for (int i = 0; i < num_threads; i++) {
