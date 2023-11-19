@@ -24,3 +24,12 @@ typedef struct Request {
     RequestHeader_t header;
     char payload[PATH_LEN];
 } Request_t;
+
+typedef struct RespHeader {
+    uint32_t length;
+    uint32_t statusCode;
+    uint32_t blockNum;
+    uint32_t blockCount;
+    char blockHash[SHA256_HASH_SIZE];
+    char totalHash[SHA256_HASH_SIZE];
+} RespHeader_t;
