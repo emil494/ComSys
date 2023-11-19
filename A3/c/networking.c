@@ -4,6 +4,9 @@
 #include <sys/socket.h>
 #include <arpa/inet.h>
 #include <string.h>
+#include <sys/stat.h>
+#include <stdbool.h>
+#include <time.h>
 
 #ifdef __APPLE__
 #include "./endian.h"
@@ -19,7 +22,8 @@ char server_port[PORT_LEN];
 char my_ip[IP_LEN];
 char my_port[PORT_LEN];
 
-int c;
+int network_socket, c;
+compsys_helper_state_t state;
 
 /*
  * Gets a sha256 hash of specified data, sourcedata. The hash itself is
@@ -78,8 +82,28 @@ void get_file_sha(const char* sourcefile, hashdata_t hash, int size)
  */
 void get_signature(char* password, char* salt, hashdata_t* hash)
 {
-    // Your code here. This function has been added as a guide, but feel free 
-    // to add more, or work in other parts of the code
+    char to_hash[strlen(password) + strlen(salt) + 1];
+    strcpy(to_hash, salt);
+    strcat(to_hash, password);
+
+    get_data_sha(to_hash, *hash, strlen(to_hash), SHA256_HASH_SIZE);
+}
+
+void build_request(char* username, char* password, char* salt, char* payload, uint32_t len, Request_t* request) {
+
+    hashdata_t hash;
+    RequestHeader_t header;
+
+    get_signature(password, salt, &hash);
+
+    memcpy(header.username, username, USERNAME_LEN);
+    memcpy(header.salted_and_hashed, hash, SHA256_HASH_SIZE);
+    header.length = htonl(len);
+
+    request->header = header;
+    if (len > 0) {
+        memcpy(request->payload, payload, len);
+    }
 }
 
 /*
@@ -88,8 +112,39 @@ void get_signature(char* password, char* salt, hashdata_t* hash)
  */
 void register_user(char* username, char* password, char* salt)
 {
-    // Your code here. This function has been added as a guide, but feel free 
-    // to add more, or work in other parts of the code
+
+    // Check wether salts.csv exists, to either create it or append to it
+    FILE *fp;
+    struct stat buffer;
+    if (stat("salts.csv", &buffer) == 0) {
+        fp = fopen("salts.csv", "a");
+    } else {
+        fp = fopen("salts.csv", "w");
+        fprintf(fp, "username,salt\n"); 
+    }
+
+    if (fp == NULL) {
+        perror("Error opening file");
+        exit(1);
+    }
+    fprintf(fp, "%s,%s\n", username, salt);
+    fclose(fp);
+
+    Request_t request;
+    build_request(username, password, salt, NULL, 0, &request);
+
+    if (compsys_helper_writen(network_socket, &request, sizeof(request)) != sizeof(request)) {
+        perror("Write");
+        exit(1);
+    }
+
+    RespHeader_t *respheader = malloc(sizeof(RespHeader_t));
+    compsys_helper_readnb(&state, respheader, RESPONSE_HEADER_LEN);
+    uint32_t length = ntohl(respheader->length);
+
+    char message[MAX_MSG_LEN];
+    compsys_helper_readnb(&state, message, length);
+    printf("Got response: %s\n", message);
 }
 
 /*
@@ -97,15 +152,89 @@ void register_user(char* username, char* password, char* salt)
  * a file path. Note that this function should be able to deal with both small 
  * and large files. 
  */
-void get_file(char* username, char* password, char* salt, char* to_get)
+void get_file(char* username, char* password, char* salt, char* to_get, uint32_t len)
 {
     // Your code here. This function has been added as a guide, but feel free 
     // to add more, or work in other parts of the code
+
+    Request_t request;
+    build_request(username, password, salt, to_get, len, &request);
+
+    if (compsys_helper_writen(network_socket, &request, sizeof(request)) != sizeof(request)) {
+        perror("Write");
+        exit(1);
+    }
+    
+    RespHeader_t *response_header = malloc(sizeof(RespHeader_t));
+    compsys_helper_readnb(&state, response_header, RESPONSE_HEADER_LEN);
+
+    uint32_t code = ntohl(response_header->statusCode);
+    uint32_t blockcount = ntohl(response_header->blockCount);
+
+    if (blockcount > 0 && code == 1){
+
+        // Initialize payload array
+        int32_t totalLen = 0;
+        char *array[blockcount];
+
+        hashdata_t received_hash;
+
+        // Fetch all payloads and index them correctly in the array
+        for (uint32_t i = 0; i < blockcount; i++) {
+            uint32_t length = ntohl(response_header->length);
+            uint32_t num = ntohl(response_header->blockNum);
+            char payload[length+1];
+            compsys_helper_readnb(&state, payload, length);
+            payload[length] = '\0';
+
+            // Check block hash
+            get_data_sha(payload, received_hash, length, SHA256_HASH_SIZE);
+            if (memcmp(received_hash, response_header->blockHash, SHA256_HASH_SIZE) != 0) {
+                printf("Block %d/%d is corrupted\n", num, blockcount);
+                exit(1);
+            }
+            
+            array[num] = strdup(payload);
+            totalLen += length;
+
+            // Read next header
+            compsys_helper_readnb(&state, response_header, RESPONSE_HEADER_LEN);
+        }
+
+        // Print all payloads to the file
+        FILE *fp = fopen(to_get, "w");
+        if (fp == NULL) {
+            perror("Error opening file");
+            exit(1);
+        }
+
+        for (uint32_t i = 0; i < blockcount; i++) {
+            fprintf(fp, "%s", array[i]);
+            free(array[i]);
+        }
+        fclose(fp);
+
+        // Check file is valid
+        get_file_sha(to_get, received_hash, SHA256_HASH_SIZE);
+        if (memcmp(received_hash, response_header->totalHash, SHA256_HASH_SIZE) != 0) {
+            perror("File is corrupted");
+            exit(1);
+        } 
+        printf("Received file of %d bytes from %d blocks, saved to %s\n", totalLen, blockcount, to_get);
+    } else {
+        uint32_t length = ntohl(response_header->length);
+        char message[MAX_MSG_LEN];
+        compsys_helper_readnb(&state, message, length);
+        printf("%s\n", message);
+    }
+
+    free(response_header);
 }
 
 int main(int argc, char **argv)
 {
-    // Users should call this script with a single argument describing what 
+    srand(time(NULL));
+        // Users should call this script with a single argument describing what 
     // config to use
     if (argc != 2)
     {
@@ -136,7 +265,7 @@ int main(int argc, char **argv)
         }else if (starts_with(buffer, SERVER_IP)) {
             memcpy(server_ip, &buffer[strlen(SERVER_IP)], 
                 strcspn(buffer, "\r\n")-strlen(SERVER_IP));
-            if (!is_valid_ip(server_ip)) {
+            if (    !is_valid_ip(server_ip)) {
                 fprintf(stderr, ">> Invalid server IP: %s\n", server_ip);
                 exit(EXIT_FAILURE);
             }
@@ -147,12 +276,15 @@ int main(int argc, char **argv)
                 fprintf(stderr, ">> Invalid server port: %s\n", server_port);
                 exit(EXIT_FAILURE);
             }
-        }        
+        }
     }
     fclose(fp);
 
     fprintf(stdout, "Client at: %s:%s\n", my_ip, my_port);
     fprintf(stdout, "Server at: %s:%s\n", server_ip, server_port);
+
+    network_socket = compsys_helper_open_clientfd(server_ip, server_port);
+    compsys_helper_readinitb(&state, network_socket);
 
     char username[USERNAME_LEN];
     char password[PASSWORD_LEN];
@@ -166,7 +298,27 @@ int main(int argc, char **argv)
     {
         username[i] = '\0';
     }
- 
+    
+    // Check if username already exists
+    bool existing_user = false;
+    struct stat s_buffer;
+    if (stat("salts.csv", &s_buffer) == 0) {
+        char line[1024];
+        FILE *fp = fopen("salts.csv", "r");
+        if (fp == NULL) {
+            perror("Error opening file");
+            exit(1);
+        }
+        while (fgets(line, sizeof(line), fp)) {
+            if (strcmp(username, strtok(line, ",")) == 0) {
+                existing_user = true;
+                strncpy(user_salt, strtok(NULL, ",\n"), SALT_LEN);
+                user_salt[SALT_LEN] = '\0';
+                break;
+            }
+        }
+    }
+
     fprintf(stdout, "Enter your password to proceed: ");
     scanf("%16s", password);
     while ((c = getchar()) != '\n' && c != EOF);
@@ -175,41 +327,41 @@ int main(int argc, char **argv)
     {
         password[i] = '\0';
     }
-
-    // Note that a random salt should be used, but you may find it easier to
-    // repeatedly test the same user credentials by using the hard coded value
-    // below instead, and commenting out this randomly generating section.
-    for (int i=0; i<SALT_LEN; i++)
-    {
-        user_salt[i] = 'a' + (random() % 26);
+    
+    // Generate random user salt
+    if (!existing_user) {
+        for (int i=0; i<SALT_LEN; i++)
+        {
+            user_salt[i] = 'a' + (random() % 26);
+        }
+        user_salt[SALT_LEN] = '\0';
     }
-    user_salt[SALT_LEN] = '\0';
-    //strncpy(user_salt, 
-    //    "0123456789012345678901234567890123456789012345678901234567890123\0", 
-    //    SALT_LEN+1);
 
     fprintf(stdout, "Using salt: %s\n", user_salt);
 
-    // The following function calls have been added as a structure to a 
-    // potential solution demonstrating the core functionality. Feel free to 
-    // add, remove or otherwise edit. Note that if you are creating a system 
-    // for user-interaction the following lines will almost certainly need to 
-    // be removed/altered.
+    if (!existing_user) {
+        register_user(username, password, user_salt);
+    }
+    close(network_socket);
 
-    // Register the given user. As handed out, this line will run every time 
-    // this client starts, and so should be removed if user interaction is 
-    // added
-    register_user(username, password, user_salt);
-
-    // Retrieve the smaller file, that doesn't not require support for blocks. 
-    // As handed out, this line will run every time this client starts, and so 
-    // should be removed if user interaction is added
-    get_file(username, password, user_salt, "tiny.txt");
-
-    // Retrieve the larger file, that requires support for blocked messages. As
-    // handed out, this line will run every time this client starts, and so 
-    // should be removed if user interaction is added
-    get_file(username, password, user_salt, "hamlet.txt");
+    // User-interaction
+    uint32_t len;
+    char path[PATH_LEN];
+    while (1) {
+        network_socket = compsys_helper_open_clientfd(server_ip, server_port);
+        printf("Enter a file you want to fetch\n");
+        scanf("%128s", path);
+        for (int i = strlen(path); i < PATH_LEN; i++) {
+            path[i] = '\0';
+        }
+        if (strcmp(path, "quit") == 0) {
+            close(network_socket);
+            break;
+        }
+        len = strlen(path);
+        get_file(username, password, user_salt, path, len);
+        close(network_socket);
+    }
 
     exit(EXIT_SUCCESS);
 }
