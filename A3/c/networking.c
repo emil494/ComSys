@@ -131,6 +131,7 @@ void register_user(char* username, char* password, char* salt)
     fclose(fp);
 
     Request_t request;
+    memset(&request, 0, sizeof(request));
     build_request(username, password, salt, NULL, 0, &request);
 
     if (compsys_helper_writen(network_socket, &request, sizeof(request)) != sizeof(request)) {
@@ -144,6 +145,7 @@ void register_user(char* username, char* password, char* salt)
 
     char message[MAX_MSG_LEN];
     compsys_helper_readnb(&state, message, length);
+    message[length] = '\0';
     printf("Got response: %s\n", message);
 }
 
@@ -158,6 +160,7 @@ void get_file(char* username, char* password, char* salt, char* to_get, uint32_t
     // to add more, or work in other parts of the code
 
     Request_t request;
+    memset(&request, 0, sizeof(request));
     build_request(username, password, salt, to_get, len, &request);
 
     if (compsys_helper_writen(network_socket, &request, sizeof(request)) != sizeof(request)) {
@@ -225,6 +228,7 @@ void get_file(char* username, char* password, char* salt, char* to_get, uint32_t
         uint32_t length = ntohl(response_header->length);
         char message[MAX_MSG_LEN];
         compsys_helper_readnb(&state, message, length);
+        message[length] = '\0';
         printf("%s\n", message);
     }
 
