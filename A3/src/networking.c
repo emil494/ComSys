@@ -147,6 +147,7 @@ void register_user(char* username, char* password, char* salt)
     compsys_helper_readnb(&state, message, length);
     message[length] = '\0';
     printf("Got response: %s\n", message);
+    free(respheader);
 }
 
 /*

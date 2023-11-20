@@ -22,7 +22,7 @@ zip: ../../src.zip
 
 ../../src.zip:
 	make clean
-	cd ../.. && zip -r handout/src.zip handout/src/Makefile handout/src/*.c handout/src/*.h handout/python/*.py handout/python/*/*.py handout/config.yaml
+	cd ../.. && zip -r A3/src.zip A3/src/Makefile A3/src/*.c A3/src/*.h A3/python/*.py A3/python/*/*.py A3/config.yaml
 
 clean:
 	rm -rf *.o networking sha256 vgcore*
