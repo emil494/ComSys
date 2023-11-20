@@ -5,7 +5,7 @@
  *    transfers min(n, compsys_helper_cnt) bytes from an internal buffer to a 
  *    user buffer, where n is the number of bytes requested by the user and 
  *    compsys_helper_cnt is the number of unread bytes in the internal buffer. 
- *    On entry, compsys_helper_read() refills the internal buffer via a call to
+ *    On entry, compsys_helper_read() refills the inte  rnal buffer via a call to
  *    read() if the internal buffer is empty.
  */
 static ssize_t compsys_helper_read(compsys_helper_state_t *rp, char *usrbuf, size_t n)
