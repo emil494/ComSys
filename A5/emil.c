@@ -10,7 +10,8 @@ long int simulate(struct memory *mem, struct assembly *as, int start_addr, FILE 
     int terminate = 0;
     while(!terminate) {
         ins = memory_rd_w(mem, pc);
-        //printf("%s\n", assembly_get(as, pc));
+        printf("%x\n", ins);
+        printf("%s\n", assembly_get(as, pc));
         
         int32_t opcode  = ins & 0x7f;
         int32_t funct3  = (ins >> 12) & 0x7;
@@ -40,7 +41,7 @@ long int simulate(struct memory *mem, struct assembly *as, int start_addr, FILE 
             imm |= ((ins >> 20) & 0x1) << 11;
             imm |= ((ins >> 12) & 0xff) << 12;
             imm |= ((ins >> 31) & 0x1) << 20;
-            if (imm & 0x100000) imm |= 0xfff00000; 
+            
             regs[rd] = pc+4;
             pc += imm;
             break;
@@ -48,11 +49,16 @@ long int simulate(struct memory *mem, struct assembly *as, int start_addr, FILE 
             imm = (ins >> 20) & 0xfff;
             if (imm & 0x800) imm |= 0xfffff000;
             int32_t to_jump = (regs[rs1] + imm) & ~1;
+            printf("Reg: %x, indx: %d\n", regs[rs1], rs1);
+            printf("Imm: %x\n", imm);
             regs[rd] = pc + 4;
+            printf("%x\n", to_jump);
+            printf("Before: %x\n", pc);
             pc = to_jump;
+            printf("After: %x\n", pc);
             break;
         case ECALL:
-            //printf("regs[17]: %d\n", regs[17]);
+            printf("regs[17]: %d\n", regs[17]);
             switch (regs[17])
             {
             case 1:
@@ -64,7 +70,7 @@ long int simulate(struct memory *mem, struct assembly *as, int start_addr, FILE 
                 pc += 4;
                 break;
             case 3:
-            case 93:
+            case 10:
                 terminate = 1;
                 break;
             default:
@@ -144,7 +150,6 @@ long int simulate(struct memory *mem, struct assembly *as, int start_addr, FILE 
             break;
         case STORE:
             adr = ((ins >> 25) & 0x7f) << 5 | ((ins >> 7) & 0x1f);
-            if (adr & 0x800) adr |= 0xfffff000;
             adr += regs[rs1];
             switch (funct3) {
             case SB:
@@ -163,12 +168,9 @@ long int simulate(struct memory *mem, struct assembly *as, int start_addr, FILE 
             break;
         case OP_IMM:
             imm = (ins >> 20) & 0xFFF;
-            if (imm & 0x800) imm |= 0xfffff000;
             switch (funct3) {
             case ADDI:
-                //printf("%d +", regs[rs1]);
                 regs[rd] = regs[rs1] + imm;
-                //printf(" %d = %d\n", imm, regs[rd]);
                 break;
             case SLLI:
                 regs[rd] = regs[rs1] << imm;
@@ -206,8 +208,56 @@ long int simulate(struct memory *mem, struct assembly *as, int start_addr, FILE 
             pc += 4;
             break;
         case OP:
-            if (funct7 == RVM) {
-                switch (funct3) {
+            switch (funct3) {
+            case ADUB:
+                switch (funct7) {
+                case ADD:
+                    regs[rd] = regs[rs1] + regs[rs2];
+                    break;
+                case SUB:
+                    regs[rd] = regs[rs1] - regs[rs2];
+                    break;
+                default:
+                    break;
+                }
+                break;
+            case SLL:
+                regs[rd] = regs[rs1] << regs[rs2];
+                break;
+            case SLT:
+                regs[rd] = (regs[rs1] < regs[rs2]) ? 1 : 0;
+                break;
+            case SLTU:
+                regs[rd] = (regs[rs1] < regs[rs2]) ? 1 : 0;
+                break;
+            case XOR:
+                regs[rd] = regs[rs1] ^ regs[rs2];
+                break;
+            case SR:
+                switch (funct7) {
+                case SRL:
+                    regs[rd] = (uint32_t)regs[rs1] >> (uint32_t)regs[rs2];
+                    break;
+                case SRA:
+                    regs[rd] = regs[rs1] >> regs[rs2];
+                    break;
+                default:
+                    break;
+                }
+                break;
+            case OR:
+                regs[rd] = regs[rs1] | regs[rs2];
+                break;
+            case AND:
+                regs[rd] = regs[rs1] & regs[rs2];
+                break;
+            default:
+                break;
+            }
+            pc += 4;
+            break;
+        case RVM:
+            switch (funct3) {
                 case MUL:
                     regs[rd] = regs[rs1] * regs[rs2];
                     break;
@@ -237,56 +287,6 @@ long int simulate(struct memory *mem, struct assembly *as, int start_addr, FILE 
             }
             pc += 4;
             break;
-            } else {
-                switch (funct3) {
-                case ADUB:
-                    switch (funct7) {
-                    case ADD:
-                        regs[rd] = regs[rs1] + regs[rs2];
-                        break;
-                    case SUB:
-                        regs[rd] = regs[rs1] - regs[rs2];
-                        break;
-                    default:
-                        break;
-                    }
-                    break;
-                case SLL:
-                    regs[rd] = regs[rs1] << regs[rs2];
-                    break;
-                case SLT:
-                    regs[rd] = (regs[rs1] < regs[rs2]) ? 1 : 0;
-                    break;
-                case SLTU:
-                    regs[rd] = (regs[rs1] < regs[rs2]) ? 1 : 0;
-                    break;
-                case XOR:
-                    regs[rd] = regs[rs1] ^ regs[rs2];
-                    break;
-                case SR:
-                    switch (funct7) {
-                    case SRL:
-                        regs[rd] = (uint32_t)regs[rs1] >> (uint32_t)regs[rs2];
-                        break;
-                    case SRA:
-                        regs[rd] = regs[rs1] >> regs[rs2];
-                        break;
-                    default:
-                        break;
-                    }
-                    break;
-                case OR:
-                    regs[rd] = regs[rs1] | regs[rs2];
-                    break;
-                case AND:
-                    regs[rd] = regs[rs1] & regs[rs2];
-                    break;
-                default:
-                    break;
-                }
-                pc += 4;
-                break;
-            }
         default:
             perror("Undefined opcode");
             exit(1);

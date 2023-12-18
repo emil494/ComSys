@@ -2,7 +2,7 @@
 
 // Simuler RISC-V program i givet lager og fra given start adresse
 long int simulate(struct memory *mem, struct assembly *as, int start_addr, FILE *log_file) {
-    int32_t regs[32] = {0};
+    int32_t regs[32];
     int32_t pc = start_addr;
     int32_t ins;
     int32_t imm;
@@ -10,7 +10,9 @@ long int simulate(struct memory *mem, struct assembly *as, int start_addr, FILE 
     int terminate = 0;
     while(!terminate) {
         ins = memory_rd_w(mem, pc);
-        //printf("%s\n", assembly_get(as, pc));
+        printf("%s\n", assembly_get(as, pc));
+        printf("%x\n", ins);
+        pc += 4;
         
         int32_t opcode  = ins & 0x7f;
         int32_t funct3  = (ins >> 12) & 0x7;
@@ -19,21 +21,18 @@ long int simulate(struct memory *mem, struct assembly *as, int start_addr, FILE 
         int rd  = (ins >> 7) & 0x1f;
         int rs1 = (ins >> 15) & 0x1f;
         int rs2 = (ins >> 20) & 0x1f;
+        regs[0] = 0;
 
         imm = 0; // Reset variables
         adr = 0;
-        regs[0] = 0;
 
         switch (opcode)
         {
         case LUI:
             regs[rd] =  ins & 0xfffff000; //((ins >> 12) & 0xfffff) << 12;
-            pc += 4;
             break;
         case AUIPC:
-            imm = (ins & 0xfffff000);
-            regs[rd] = pc + imm;
-            pc += 4;
+            regs[rd] = (pc - 4) + (ins & 0xfffff000);
             break;
         case JAL:
             imm |= ((ins >> 21) & 0x3ff) << 1; 
@@ -41,27 +40,23 @@ long int simulate(struct memory *mem, struct assembly *as, int start_addr, FILE 
             imm |= ((ins >> 12) & 0xff) << 12;
             imm |= ((ins >> 31) & 0x1) << 20;
             if (imm & 0x100000) imm |= 0xfff00000; 
-            regs[rd] = pc+4;
-            pc += imm;
+            regs[rd] = pc;
+            pc += imm - 4;
             break;
         case JALR:
             imm = (ins >> 20) & 0xfff;
             if (imm & 0x800) imm |= 0xfffff000;
-            int32_t to_jump = (regs[rs1] + imm) & ~1;
-            regs[rd] = pc + 4;
-            pc = to_jump;
+            regs[rd] = pc;
+            pc = (regs[rs1] + imm) & ~1;
             break;
         case ECALL:
-            //printf("regs[17]: %d\n", regs[17]);
             switch (regs[17])
             {
             case 1:
                 regs[10] = getchar();
-                pc += 4;
                 break;
             case 2:
                 putchar(regs[10]);
-                pc += 4;
                 break;
             case 3:
             case 93:
@@ -77,6 +72,7 @@ long int simulate(struct memory *mem, struct assembly *as, int start_addr, FILE 
             imm |= ((ins >> 7) & 0x1) << 11;
             imm |= (ins >> 31) << 12;
             if (imm & 0x1000) imm |= 0xffffe000;
+            pc -= 4; // Adjust for pc increment
 
             switch (funct3)
             {
@@ -140,7 +136,6 @@ long int simulate(struct memory *mem, struct assembly *as, int start_addr, FILE 
             default:
                 break;
             }
-            pc += 4;
             break;
         case STORE:
             adr = ((ins >> 25) & 0x7f) << 5 | ((ins >> 7) & 0x1f);
@@ -159,16 +154,12 @@ long int simulate(struct memory *mem, struct assembly *as, int start_addr, FILE 
             default:
                 break;
             }
-            pc += 4;
             break;
         case OP_IMM:
             imm = (ins >> 20) & 0xFFF;
-            if (imm & 0x800) imm |= 0xfffff000;
             switch (funct3) {
             case ADDI:
-                //printf("%d +", regs[rs1]);
                 regs[rd] = regs[rs1] + imm;
-                //printf(" %d = %d\n", imm, regs[rd]);
                 break;
             case SLLI:
                 regs[rd] = regs[rs1] << imm;
@@ -177,7 +168,7 @@ long int simulate(struct memory *mem, struct assembly *as, int start_addr, FILE 
                 regs[rd] = (regs[rs1] < (int)imm) ? 1 : 0;
                 break;
             case SLTIU:
-                regs[rd] = ((uint32_t)regs[rs1] < (uint32_t)imm) ? 1 : 0;
+                regs[rd] = ((uint32_t)regs[rs1] < imm) ? 1 : 0;
                 break;
             case XORI:
                 regs[rd] = regs[rs1] ^ imm;
@@ -203,41 +194,9 @@ long int simulate(struct memory *mem, struct assembly *as, int start_addr, FILE 
             default:
                 break;
             }
-            pc += 4;
             break;
         case OP:
-            if (funct7 == RVM) {
-                switch (funct3) {
-                case MUL:
-                    regs[rd] = regs[rs1] * regs[rs2];
-                    break;
-                case MULH:
-                    regs[rd] = (regs[rs1] * regs[rs2]) >> 16;
-                    break;
-                case MULHSU:
-                    regs[rd] = (regs[rs1] * (uint32_t)regs[rs2]) >> 16;
-                    break;
-                case MULHU:
-                    regs[rd] = ((uint32_t)regs[rs1] * (uint32_t)regs[rs2]) >> 16;
-                    break;
-                case DIV:
-                    regs[rd] = regs[rs1] / regs[rs2];
-                    break;
-                case DIVU:
-                    regs[rd] = (uint32_t)regs[rs1] / (uint32_t)regs[rs2];
-                    break;
-                case REM:
-                    regs[rd] = regs[rs1] % regs[rs2];
-                    break;
-                case REMU:
-                    regs[rd] = (uint32_t)regs[rs1] % (uint32_t)regs[rs2];
-                    break;
-                default:
-                    break;
-            }
-            pc += 4;
-            break;
-            } else {
+            if (funct7 == RVM) { // Check for RV32M
                 switch (funct3) {
                 case ADUB:
                     switch (funct7) {
@@ -284,8 +243,36 @@ long int simulate(struct memory *mem, struct assembly *as, int start_addr, FILE 
                 default:
                     break;
                 }
-                pc += 4;
                 break;
+            } else {
+                switch (funct3) {
+                case MUL:
+                    regs[rd] = regs[rs1] * regs[rs2];
+                    break;
+                case MULH:
+                    regs[rd] = (regs[rs1] * regs[rs2]) >> 16;
+                    break;
+                case MULHSU:
+                    regs[rd] = (regs[rs1] * regs[rs2]) >> 16;
+                    break;
+                case MULHU:
+                    regs[rd] = (regs[rs1] * regs[rs2]) >> 16;
+                    break;
+                case DIV:
+                    regs[rd] = regs[rs1] / regs[rs2];
+                    break;
+                case DIVU:
+                    regs[rd] = regs[rs1] / regs[rs2];
+                    break;
+                case REM:
+                    regs[rd] = regs[rs1] % regs[rs2];
+                    break;
+                case REMU:
+                    regs[rd] = regs[rs1] % regs[rs2];
+                    break;
+                default:
+                    break;
+                }
             }
         default:
             perror("Undefined opcode");

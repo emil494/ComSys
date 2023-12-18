@@ -5,6 +5,7 @@
 #include "assembly.h"
 #include <stdio.h>
 #include <stdlib.h>
+#include <stdint.h>
 
 #define LUI     0x37
 #define AUIPC   0x17
